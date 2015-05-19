@@ -28,16 +28,16 @@ namespace Jackett.Indexers
 
         public Uri SiteLink
         {
-            get { return new Uri("https://rarbg.com"); }
+            get { return new Uri("https://rarbg.to"); }
         }
 
         public bool IsConfigured { get; private set; }
 
         const string DefaultUrl = "http://torrentapi.org";
 
-        const string TokenUrl = "/pubapi.php?get_token=get_token&format=json";
-        const string SearchTVRageUrl = "/pubapi.php?mode=search&search_tvrage={0}&token={1}&format=json&min_seeders=1";
-        const string SearchQueryUrl = "/pubapi.php?mode=search&search_string={0}&token={1}&format=json&min_seeders=1";
+        const string TokenUrl = "/pubapi.php?get_token=get_token&format=json_extended";
+        const string SearchTVRageUrl = "/pubapi.php?mode=search&search_tvrage={0}&token={1}&format=json_extended&min_seeders=1";
+        const string SearchQueryUrl = "/pubapi.php?mode=search&search_string={0}&token={1}&format=json_extended&min_seeders=1";
 
         static string chromeUserAgent = "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.118 Safari/537.36";
 
@@ -73,7 +73,7 @@ namespace Jackett.Indexers
 
             var formattedUrl = config.GetFormattedHostUrl();
             var token = await GetToken(formattedUrl);
-            /*var releases = await PerformQuery(new TorznabQuery(), formattedUrl);
+            var releases = await PerformQuery(new TorznabQuery(), formattedUrl);
             if (releases.Length == 0)
                 throw new Exception("Could not find releases from this URL");*/
 
@@ -92,6 +92,14 @@ namespace Jackett.Indexers
         {
             BaseUrl = (string)jsonConfig["base_url"];
             IsConfigured = true;
+        }
+        
+        async Task<ReleaseInfo[]> PerformQuery(TorznabQuery query, string baseUrl)
+        {
+        
+        public async Task<ReleaseInfo[]> PerformQuery(TorznabQuery query)
+        {
+            return await PerformQuery(query, BaseUrl);
         }
 
         HttpRequestMessage CreateHttpRequest(string uri)
