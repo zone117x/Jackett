@@ -1,4 +1,5 @@
-﻿using Jackett.Indexers;
+using Jackett.Indexers;
+using CommandLine;
 using Newtonsoft.Json.Linq;
 using NLog;
 using NLog.Config;
