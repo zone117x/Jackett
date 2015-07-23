@@ -19,7 +19,13 @@ namespace Jackett
 {
     class Program
     {
-        public static string AppConfigDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Jackett");
+        public static string AppConfigDirectory { get; private set; }
+
+        public static int Port { get; private set; }
+
+        public static bool ListenPublic { get; private set; }
+
+        public static bool ListenSet { get; private set; }
 
         public static Server ServerInstance { get; private set; }
 
@@ -36,7 +42,48 @@ namespace Jackett
         static void Main(string[] args)
         {
             ExitEvent = new ManualResetEvent(false);
+            var result = CommandLine.Parser.Default.ParseArguments<Options>(args);
+            var exitCode = result
+                    .Return(
+                               options =>
+                {
+                    if (options.Verbose)
+                    {
+                        Console.WriteLine("Directory: {0}, port: {1}, listen public: {2}, listen private: {3}, listen set: {4}", 
+                            options.Directory, options.Port, 
+                            options.ListenPublic, options.ListenPrivate, 
+                            options.ListenSet);
+                    }
+                    Perform(options);
+                    return 0;
+                },
+                               errors =>
+                {
+                    return 1;
+                });
 
+        }
+
+        static void Perform(Options options)
+        {
+            if (!(options.Directory == null))
+            {
+                AppConfigDirectory = options.Directory;
+            }
+            else
+            {
+                AppConfigDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Jackett");
+            }
+            Port = options.Port;
+            Console.WriteLine("options.ListenSet: " + options.ListenSet);
+            if (options.ListenSet)
+            {
+                ListenSet = true;
+                if (options.ListenPublic)
+                    ListenPublic = true;
+                else
+                    ListenPublic = false;
+            }
             MigrateSettingsDirectory();
 
             try
@@ -90,11 +137,12 @@ namespace Jackett
             LogManager.Configuration = logConfig;
             LoggerInstance = LogManager.GetCurrentClassLogger();
 
+            UpdateSettingsFile();
             ReadSettingsFile();
 
             var serverTask = Task.Run(async () =>
             {
-                ServerInstance = new Server();
+                ServerInstance = new Server(Port, ListenPublic);
                 await ServerInstance.Start();
             });
 
@@ -125,9 +173,10 @@ namespace Jackett
 
             ServerInstance.Stop();
             ServerInstance = null;
+            ReadSettingsFile();
             var serverTask = Task.Run(async () =>
             {
-                ServerInstance = new Server();
+                ServerInstance = new Server(Port, ListenPublic);
                 await ServerInstance.Start();
             });
             Task.WaitAll(serverTask);
@@ -149,22 +198,49 @@ namespace Jackett
             }
         }
 
+        static void UpdateSettingsFile()
+        {
+            var path = Path.Combine(AppConfigDirectory, "config.json");
+            JObject f = new JObject();
+            if (File.Exists(path) && (!(Port == 0) || ListenSet))
+            {
+                var configJson = JObject.Parse(File.ReadAllText(path));
+                if (!(Port == 0))
+                    f.Add("port", Port);
+                else
+                    f.Add("port", (int)configJson.GetValue("port"));
+                if (ListenSet)
+                    f.Add("public", ListenPublic);
+                else
+                    f.Add("public", (bool)configJson.GetValue("public"));
+                File.WriteAllText(path, f.ToString());
+            }
+            else
+            {
+                if (Port == 0)
+                {
+                    Console.WriteLine("putting default port");
+                    f.Add("port", Server.DefaultPort);
+                }
+                else
+                {
+                    Console.WriteLine("putting port {0}", Port);
+                    f.Add("port", Port);
+                }
+                if (ListenSet)
+                    f.Add("public", ListenPublic);
+                else
+                    f.Add("public", true);         
+                File.WriteAllText(path, f.ToString());
+            }
+        }
+        
         static void ReadSettingsFile()
         {
             var path = Path.Combine(AppConfigDirectory, "config.json");
-            if (!File.Exists(path))
-            {
-                JObject f = new JObject();
-                f.Add("port", Server.DefaultPort);
-                f.Add("public", true);
-                File.WriteAllText(path, f.ToString());
-            }
-
             var configJson = JObject.Parse(File.ReadAllText(path));
-            int port = (int)configJson.GetValue("port");
-            Server.Port = port;
-
-            Server.ListenPublic = (bool)configJson.GetValue("public");
+            Port = (int)configJson.GetValue("port");
+            ListenPublic = (bool)configJson.GetValue("public");
 
             Console.WriteLine("Config file path: " + path);
         }
