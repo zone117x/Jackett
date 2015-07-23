@@ -25,12 +25,13 @@ namespace Jackett
         WebApi webApi;
 
 
-        public Server()
+        public Server(int port, bool listenPublic)
         {
             // Allow all SSL.. sucks I know but mono on linux is having problems without it..
             ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
 
-            ReadServerSettingsFile();
+            Port = port;
+            ListenPublic = listenPublic;
             LoadApiKey();
 
             indexerManager = new IndexerManager();
