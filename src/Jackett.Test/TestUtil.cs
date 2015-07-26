@@ -4,12 +4,8 @@ using Jackett.Services;
 using Jackett.Utils.Clients;
 using NLog;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace JackettTest
 {
