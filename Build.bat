@@ -16,3 +16,6 @@ cd build
 del *.pdb
 del *.xml
 cd ..
+
+iscc Installer.iss
+
