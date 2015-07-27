@@ -1,16 +1,10 @@
 ﻿using Jackett.Utils;
-using Newtonsoft.Json.Linq;
 using NLog;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Jackett.Services

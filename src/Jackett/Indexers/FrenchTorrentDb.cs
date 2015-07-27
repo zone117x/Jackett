@@ -6,7 +6,6 @@ using Newtonsoft.Json.Linq;
 using NLog;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;

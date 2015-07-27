@@ -1,22 +1,12 @@
-﻿using Autofac;
-using Jackett.Models.Config;
-using Jackett.Services;
+﻿using Jackett.Models.Config;
 using Microsoft.Owin.Hosting;
 using Newtonsoft.Json.Linq;
 using NLog;
-using NLog.Config;
-using NLog.Targets;
-using NLog.Windows.Forms;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Jackett.Services
 {
