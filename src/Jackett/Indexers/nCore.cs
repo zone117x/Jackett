@@ -157,17 +157,12 @@ namespace Jackett.Indexers
                         release.Description = release.Title;
                         release.MinimumRatio = 1;
                         release.MinimumSeedTime = 172800;
+
                         string downloadLink = SiteLink + torrentTxt.GetAttribute("href");
-                        release.MagnetUri = new Uri(downloadLink);
-
-                        HttpWebRequest myHttpWebRequest = (HttpWebRequest)WebRequest.Create(release.MagnetUri);
-                        myHttpWebRequest.CookieContainer = cookies;
-                        //myHttpWebRequest.MaximumAutomaticRedirections = 1;
-                        myHttpWebRequest.AllowAutoRedirect = true;
-                        HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
-
                         string downloadId = downloadLink.Substring(downloadLink.IndexOf("&id=") + 4);
-                        release.Link = release.Comments = new Uri(SiteLink.ToString() + "torrents.php?action=details&id=" + downloadId);
+
+                        release.Link = new Uri(SiteLink.ToString() + "torrents.php?action=download&id=" + downloadId);
+                        release.Comments = new Uri(SiteLink.ToString() + "torrents.php?action=details&id=" + downloadId);
                         release.Guid = new Uri(release.Comments.ToString() + "#comments"); ;
                         release.Seeders = ParseUtil.CoerceInt(qRow.Find(".box_s2").Find("a").First().Text());
                         release.Peers = ParseUtil.CoerceInt(qRow.Find(".box_l2").Find("a").First().Text()) + release.Seeders;
