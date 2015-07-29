@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using NLog;
 using Jackett.Services;
 using Jackett.Utils;
+using System.IO;
 
 namespace Jackett.Indexers
 {
@@ -19,6 +20,7 @@ namespace Jackett.Indexers
 
         public bool IsConfigured { get; protected set; }
         public Uri SiteLink { get; private set; }
+        public JObject ConfigData { get; set; }
 
         public TorznabCapabilities TorznabCaps { get; private set; }
 
@@ -33,7 +35,7 @@ namespace Jackett.Indexers
             return StringUtil.StripNonAlphaNumeric(type.Name.ToLowerInvariant());
         }
 
-        public BaseIndexer(string name, string description, Uri link, TorznabCapabilities caps, IIndexerManagerService manager,Logger logger)
+        public BaseIndexer(string name, string description, Uri link, TorznabCapabilities caps, IIndexerManagerService manager, Logger logger)
         {
             DisplayName = name;
             DisplayDescription = description;
@@ -41,11 +43,18 @@ namespace Jackett.Indexers
             TorznabCaps = caps;
             this.logger = logger;
             indexerService = manager;
+            ConfigData = GetConfig();
         }
 
         protected void SaveConfig(JToken config)
         {
             indexerService.SaveConfig(this as IIndexer, config);
+            ConfigData = GetConfig();
+        }
+
+        private JObject GetConfig()
+        {
+            return indexerService.GetConfig(this as IIndexer);
         }
 
         protected void OnParseError(string results, Exception ex)

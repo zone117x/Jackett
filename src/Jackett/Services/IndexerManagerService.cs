@@ -21,6 +21,7 @@ namespace Jackett.Services
         IEnumerable<IIndexer> GetAllIndexers();
         void SaveConfig(IIndexer indexer, JToken obj);
         void InitIndexers();
+        JObject GetConfig(IIndexer indexer);
     }
 
     public class IndexerManagerService : IIndexerManagerService
@@ -98,6 +99,17 @@ namespace Jackett.Services
             if (!Directory.Exists(configService.GetIndexerConfigDir()))
                 Directory.CreateDirectory(configService.GetIndexerConfigDir());
             File.WriteAllText(configFilePath, obj.ToString());
+        }
+
+        public JObject GetConfig(IIndexer indexer)
+        {
+            var configFilePath = GetIndexerConfigFilePath(indexer);
+            if (File.Exists(configFilePath))
+            {
+                JObject jsonString = JObject.Parse(File.ReadAllText(configFilePath));
+                return jsonString;
+            }
+            return null;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Jackett.Models;
+using Newtonsoft.Json.Linq;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -57,6 +58,11 @@ namespace Jackett
         public static void DumpToJson(this CookieContainer cookies, Uri uri, JToken json)
         {
             json["cookie_header"] = cookies.GetCookieHeader(uri);
+        }
+
+        public static void DumpConfigToJson(this CookieContainer cookies, ConfigurationData config, JToken json)
+        {
+            json["config"] = config.ToJson();
         }
     }
 }

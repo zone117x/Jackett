@@ -42,5 +42,10 @@ namespace JackettTest
         {
             throw new NotImplementedException();
         }
+
+        public JObject GetConfig(IIndexer indexer)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
