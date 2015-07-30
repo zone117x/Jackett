@@ -2,6 +2,7 @@
 using Jackett.Models;
 using Jackett.Services;
 using Jackett.Utils;
+using Jackett.Utils.Clients;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
@@ -19,23 +20,21 @@ namespace Jackett.Indexers
 {
     public class nCore : BaseIndexer, IIndexer
     {
-        private readonly string SearchUrl = "http://ncore.cc/torrents.php";
+        private readonly string SearchUrl = "https://ncore.cc/torrents.php";
         private static string LoginUrl = "https://ncore.cc/login.php";
-        private readonly string LoggedInUrl = "http://ncore.cc/index.php";
-        private const int MAXPAGES = 3;
+        private readonly string LoggedInUrl = "https://ncore.cc/index.php";
+        private string cookieHeader = "";
 
-        private readonly string enSearch = "torrents.php?oldal={0}&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser,dvdser,hdser&mire={1}&miben=name";
-        private readonly string hunSearch = "torrents.php?oldal={0}&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser_hun,dvdser_hun,hdser_hun,mire={1}&miben=name";
-        private readonly string enHunSearch = "torrents.php?oldal={0}&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser_hun,xvidser,dvdser_hun,dvdser,hdser_hun,hdser&mire={1}&miben=name";
+        private readonly string enSearch = "torrents.php?oldal=1&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser,dvdser,hdser&mire={0}&miben=name";
+        private readonly string hunSearch = "torrents.php?oldal=1&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser_hun,dvdser_hun,hdser_hun,mire={0}&miben=name";
+        private readonly string enHunSearch = "torrents.php?oldal=1&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser_hun,xvidser,dvdser_hun,dvdser,hdser_hun,hdser&mire={0}&miben=name";
 
-        CookieContainer cookies;
-        HttpClientHandler handler;
-        HttpClient client;
+        private IWebClient webclient;
 
-        public nCore(IIndexerManagerService i, Logger l)
+        public nCore(IIndexerManagerService i, IWebClient wc, Logger l)
             : base(name: "nCore",
-                description: "nCore qsdfqsdf",
-                link: new Uri("http://ncore.cc/"),
+                description: "A Hungarian private torrent site.",
+                link: new Uri("https://ncore.cc/"),
                 caps: TorznabCapsUtil.CreateDefaultTorznabTVCaps(),
                 manager: i,
                 logger: l)
@@ -60,24 +59,7 @@ namespace Jackett.Indexers
                     SearchUrl = SiteLink + enSearch;
             }
 
-            cookies = new CookieContainer();
-            handler = new HttpClientHandler
-            {
-                CookieContainer = cookies,
-                AllowAutoRedirect = true,
-                UseCookies = true,
-            };
-            client = new HttpClient(handler);
-        }
-
-
-        HttpRequestMessage CreateHttpRequest(string url)
-        {
-            var message = new HttpRequestMessage();
-            message.Method = HttpMethod.Get;
-            message.RequestUri = new Uri(url);
-            message.Headers.UserAgent.ParseAdd(BrowserUtil.ChromeUserAgent);
-            return message;
+            webclient = wc;
         }
 
         public Task<ConfigurationData> GetConfigurationForSetup()
@@ -94,26 +76,20 @@ namespace Jackett.Indexers
             if (config.Hungarian.Value == false && config.English.Value == false)
                 throw new ExceptionWithConfigData("Please select atleast one language.", (ConfigurationData)config);
 
-            var startMessage = CreateHttpRequest(LoginUrl);
-            var results = await (await client.SendAsync(startMessage)).Content.ReadAsStringAsync();
-
-
             var pairs = new Dictionary<string, string> {
 				{ "nev", config.Username.Value },
-				{ "pass", config.Password.Value }
+				{ "pass", config.Password.Value },
+                
 			};
+            WebClientStringResult response = await webclient.GetString(new Utils.Clients.WebRequest()
+            {
+                Url = LoginUrl,
+                PostData = pairs,
+                Referer = SiteLink.ToString(),
+                Type = RequestType.POST,
+            });
 
-            var content = new FormUrlEncodedContent(pairs);
-
-            var loginRequest = CreateHttpRequest(LoginUrl);
-            loginRequest.Method = HttpMethod.Post;
-            loginRequest.Content = content;
-            loginRequest.Headers.Referrer = new Uri(LoggedInUrl);
-
-            var response = await client.SendAsync(loginRequest);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (!responseContent.Contains("Felhasználó"))
+            if (!response.RedirectingTo.Equals("index.php"))
             {
                 var errorMessage = "Couldn't login";
                 throw new ExceptionWithConfigData(errorMessage, (ConfigurationData)config);
@@ -121,24 +97,30 @@ namespace Jackett.Indexers
             else
             {
                 var configSaveData = new JObject();
-                cookies.DumpToJson(SiteLink, configSaveData);
-                cookies.DumpConfigToJson(config, configSaveData);
+                cookieHeader = response.Cookies;
+                cookieHeader = cookieHeader.Substring(0, cookieHeader.IndexOf(' ') - 1) + ";stilus=brutecore; nyelv=hu";
+                configSaveData["cookies"] = cookieHeader;
+                configSaveData["config"] = config.ToJson();
                 SaveConfig(configSaveData);
                 IsConfigured = true;
             }
         }
 
-        async Task<ReleaseInfo[]> PerformQuery(TorznabQuery query, Uri baseUrl)
+        public async Task<ReleaseInfo[]> PerformQuery(TorznabQuery query)
         {
-            List<string> searchurls = new List<string>();
-            var searchString = query.SanitizedSearchTerm + " " + query.GetEpisodeSearchString();
-            searchurls.Add(String.Format(SearchUrl, 1, HttpUtility.UrlEncode(searchString)));
-            searchurls = getSearchUrls(searchurls, searchString).Result;
-
             List<ReleaseInfo> releases = new List<ReleaseInfo>();
-            foreach (string url in searchurls)
+
+            var searchString = query.SanitizedSearchTerm + " " + query.GetEpisodeSearchString();
+            var episodeSearchUrl = string.Format(SearchUrl, HttpUtility.UrlEncode(searchString));
+           
+            var response = await webclient.GetString(new Utils.Clients.WebRequest()
             {
-                var results = await client.GetStringAsync(url);
+                Url = episodeSearchUrl,
+                Cookies = cookieHeader,
+                Referer = SiteLink.ToString(),
+            });
+
+            var results = response.Content;
                 try
                 {
                     CQ dom = results;
@@ -177,38 +159,27 @@ namespace Jackett.Indexers
                 {
                     OnParseError(results, ex);
                 }
-            }
+            
 
             return releases.ToArray();
         }
 
-        private async Task<List<string>> getSearchUrls(List<string> searchurls, string searchString)
-        {
-            var results = await client.GetStringAsync(searchurls.First());
-            CQ dom = results;
-            var PagesCount = dom["#pager_top"].Find("a").Count();
-            for (int i = 0; i < PagesCount; i++)
-            {
-                searchurls.Add(String.Format(SearchUrl, i + 2, HttpUtility.UrlEncode(searchString)));
-                if (i == 2) break;
-            }
-            return searchurls;
-        }
-
         public void LoadFromSavedConfiguration(JToken jsonConfig)
         {
-            cookies.FillFromJson(SiteLink, jsonConfig, logger);
+            //cookies.FillFromJson(SiteLink, jsonConfig, logger);
+            cookieHeader = (string)jsonConfig["cookies"];
             IsConfigured = true;
         }
 
-        public async Task<ReleaseInfo[]> PerformQuery(TorznabQuery query)
+        public async Task<byte[]> Download(Uri link)
         {
-            return await PerformQuery(query, SiteLink);
-        }
+            var response = await webclient.GetBytes(new Utils.Clients.WebRequest()
+            {
+                Url = link.ToString(),
+                Cookies = cookieHeader
+            });
 
-        public Task<byte[]> Download(Uri link)
-        {
-            return client.GetByteArrayAsync(link);
+            return response.Content;
         }
     }
 }
