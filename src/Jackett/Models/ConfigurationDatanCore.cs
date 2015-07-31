@@ -24,12 +24,11 @@ namespace Jackett.Models
             English = new BoolItem { Name = "English", Value = true };
         }
 
-        public ConfigurationDatanCore(JObject json)
+        public ConfigurationDatanCore(JToken json)
         {
-            var jsonConfig = json["config"];
             ConfigurationDatanCore configData = new ConfigurationDatanCore();
 
-            dynamic configArray = JsonConvert.DeserializeObject(json["config"].ToString());
+            dynamic configArray = JsonConvert.DeserializeObject(json.ToString());
             foreach (var config in configArray)
             {
                 string propertyName = UppercaseFirst((string)config.id);

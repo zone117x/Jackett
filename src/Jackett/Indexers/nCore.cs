@@ -20,14 +20,19 @@ namespace Jackett.Indexers
 {
     public class nCore : BaseIndexer, IIndexer
     {
-        private readonly string SearchUrl = "https://ncore.cc/torrents.php";
+        private string SearchUrl = "https://ncore.cc/torrents.php";
         private static string LoginUrl = "https://ncore.cc/login.php";
         private readonly string LoggedInUrl = "https://ncore.cc/index.php";
         private string cookieHeader = "";
+        private JToken configData = null;
 
         private readonly string enSearch = "torrents.php?oldal=1&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser,dvdser,hdser&mire={0}&miben=name";
         private readonly string hunSearch = "torrents.php?oldal=1&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser_hun,dvdser_hun,hdser_hun,mire={0}&miben=name";
         private readonly string enHunSearch = "torrents.php?oldal=1&tipus=kivalasztottak_kozott&kivalasztott_tipus=xvidser_hun,xvidser,dvdser_hun,dvdser,hdser_hun,hdser&mire={0}&miben=name";
+
+        private string SearchUrlEn { get { return SiteLink.ToString() + enSearch; } }
+        private string SearchUrlHun { get { return SiteLink.ToString() + hunSearch; } }
+        private string SearchUrlEnHun { get { return SiteLink.ToString() + enHunSearch; } }
 
         private IWebClient webclient;
 
@@ -39,32 +44,13 @@ namespace Jackett.Indexers
                 manager: i,
                 logger: l)
         {
-            SearchUrl = SiteLink + enHunSearch;
-
-            if (ConfigData != null)
-            {
-                string hun, eng;
-                Dictionary<string, string>[] configDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>[]>(this.ConfigData["config"].ToString());
-                configDictionary[2].TryGetValue("value", out hun);
-                configDictionary[3].TryGetValue("value", out eng);
-
-                bool isHun = Boolean.Parse(hun);
-                bool isEng = Boolean.Parse(eng);
-
-                if (isHun && isEng)
-                    SearchUrl = SiteLink + enHunSearch;
-                else if (isHun && !isEng)
-                    SearchUrl = SiteLink + hunSearch;
-                else if (!isHun && isEng)
-                    SearchUrl = SiteLink + enSearch;
-            }
-
+            SearchUrl = SearchUrlEnHun;
             webclient = wc;
         }
 
         public Task<ConfigurationData> GetConfigurationForSetup()
         {
-            var config = this.ConfigData == null ? new ConfigurationDatanCore() : new ConfigurationDatanCore(this.ConfigData);
+            var config = configData == null ? new ConfigurationDatanCore() : new ConfigurationDatanCore(configData);
             return Task.FromResult<ConfigurationData>(config);
         }
 
@@ -79,9 +65,10 @@ namespace Jackett.Indexers
             var pairs = new Dictionary<string, string> {
 				{ "nev", config.Username.Value },
 				{ "pass", config.Password.Value },
-                
+                {"ne_leptessen_ki", "on"}
 			};
-            WebClientStringResult response = await webclient.GetString(new Utils.Clients.WebRequest()
+
+            var response = await webclient.GetString(new Utils.Clients.WebRequest()
             {
                 Url = LoginUrl,
                 PostData = pairs,
@@ -98,9 +85,10 @@ namespace Jackett.Indexers
             {
                 var configSaveData = new JObject();
                 cookieHeader = response.Cookies;
+
                 cookieHeader = cookieHeader.Substring(0, cookieHeader.IndexOf(' ') - 1) + ";stilus=brutecore; nyelv=hu";
                 configSaveData["cookies"] = cookieHeader;
-                configSaveData["config"] = config.ToJson();
+                configSaveData["config"] = configData = config.ToJson();
                 SaveConfig(configSaveData);
                 IsConfigured = true;
             }
@@ -112,7 +100,7 @@ namespace Jackett.Indexers
 
             var searchString = query.SanitizedSearchTerm + " " + query.GetEpisodeSearchString();
             var episodeSearchUrl = string.Format(SearchUrl, HttpUtility.UrlEncode(searchString));
-           
+
             var response = await webclient.GetString(new Utils.Clients.WebRequest()
             {
                 Url = episodeSearchUrl,
@@ -121,52 +109,70 @@ namespace Jackett.Indexers
             });
 
             var results = response.Content;
-                try
+            try
+            {
+                CQ dom = results;
+
+                ReleaseInfo release;
+                var rows = dom[".box_torrent_all"].Find(".box_torrent");
+
+                foreach (var row in rows)
                 {
-                    CQ dom = results;
+                    CQ qRow = row.Cq();
 
-                    ReleaseInfo release;
-                    var rows = dom[".box_torrent_all"].Find(".box_torrent");
+                    release = new ReleaseInfo();
+                    var torrentTxt = qRow.Find(".torrent_txt").Find("a").Get(0);
+                    if (torrentTxt == null) continue;
+                    release.Title = torrentTxt.GetAttribute("title");
+                    release.Description = release.Title;
+                    release.MinimumRatio = 1;
+                    release.MinimumSeedTime = 172800;
 
-                    foreach (var row in rows)
-                    {
-                        CQ qRow = row.Cq();
+                    string downloadLink = SiteLink + torrentTxt.GetAttribute("href");
+                    string downloadId = downloadLink.Substring(downloadLink.IndexOf("&id=") + 4);
 
-                        release = new ReleaseInfo();
-                        var torrentTxt = qRow.Find(".torrent_txt").Find("a").Get(0);
-                        if (torrentTxt == null) continue;
-                        release.Title = torrentTxt.GetAttribute("title");
-                        release.Description = release.Title;
-                        release.MinimumRatio = 1;
-                        release.MinimumSeedTime = 172800;
+                    release.Link = new Uri(SiteLink.ToString() + "torrents.php?action=download&id=" + downloadId);
+                    release.Comments = new Uri(SiteLink.ToString() + "torrents.php?action=details&id=" + downloadId);
+                    release.Guid = new Uri(release.Comments.ToString() + "#comments"); ;
+                    release.Seeders = ParseUtil.CoerceInt(qRow.Find(".box_s2").Find("a").First().Text());
+                    release.Peers = ParseUtil.CoerceInt(qRow.Find(".box_l2").Find("a").First().Text()) + release.Seeders;
+                    release.PublishDate = DateTime.Parse(qRow.Find(".box_feltoltve2").Get(0).InnerHTML.Replace("<br />", " "), CultureInfo.InvariantCulture);
+                    string[] sizeSplit = qRow.Find(".box_meret2").Get(0).InnerText.Split(' ');
+                    release.Size = ReleaseInfo.GetBytes(sizeSplit[1].ToLower(), ParseUtil.CoerceFloat(sizeSplit[0]));
 
-                        string downloadLink = SiteLink + torrentTxt.GetAttribute("href");
-                        string downloadId = downloadLink.Substring(downloadLink.IndexOf("&id=") + 4);
-
-                        release.Link = new Uri(SiteLink.ToString() + "torrents.php?action=download&id=" + downloadId);
-                        release.Comments = new Uri(SiteLink.ToString() + "torrents.php?action=details&id=" + downloadId);
-                        release.Guid = new Uri(release.Comments.ToString() + "#comments"); ;
-                        release.Seeders = ParseUtil.CoerceInt(qRow.Find(".box_s2").Find("a").First().Text());
-                        release.Peers = ParseUtil.CoerceInt(qRow.Find(".box_l2").Find("a").First().Text()) + release.Seeders;
-                        release.PublishDate = DateTime.Parse(qRow.Find(".box_feltoltve2").Get(0).InnerHTML.Replace("<br />", " "), CultureInfo.InvariantCulture);
-                        string[] sizeSplit = qRow.Find(".box_meret2").Get(0).InnerText.Split(' ');
-                        release.Size = ReleaseInfo.GetBytes(sizeSplit[1].ToLower(), ParseUtil.CoerceFloat(sizeSplit[0]));
-
-                        releases.Add(release);
-                    }
+                    releases.Add(release);
                 }
-                catch (Exception ex)
-                {
-                    OnParseError(results, ex);
-                }
-            
+            }
+            catch (Exception ex)
+            {
+                OnParseError(response.Content, ex);
+            }
+
 
             return releases.ToArray();
         }
 
         public void LoadFromSavedConfiguration(JToken jsonConfig)
         {
-            //cookies.FillFromJson(SiteLink, jsonConfig, logger);
+            if (jsonConfig["config"] != null)
+            {
+                string hun, eng;
+                Dictionary<string, string>[] configDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>[]>(jsonConfig["config"].ToString());
+                configDictionary[2].TryGetValue("value", out hun);
+                configDictionary[3].TryGetValue("value", out eng);
+
+                bool isHun = Boolean.Parse(hun);
+                bool isEng = Boolean.Parse(eng);
+
+                if (isHun && isEng)
+                    SearchUrl = SearchUrlEnHun;
+                else if (isHun && !isEng)
+                    SearchUrl = SearchUrlHun;
+                else if (!isHun && isEng)
+                    SearchUrl = SearchUrlEn;
+
+                configData = jsonConfig["config"];
+            }
             cookieHeader = (string)jsonConfig["cookies"];
             IsConfigured = true;
         }
