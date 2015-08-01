@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using NLog;
 using Jackett.Services;
 using Jackett.Utils;
+using System.IO;
 
 namespace Jackett.Indexers
 {
@@ -33,7 +34,7 @@ namespace Jackett.Indexers
             return StringUtil.StripNonAlphaNumeric(type.Name.ToLowerInvariant());
         }
 
-        public BaseIndexer(string name, string description, Uri link, TorznabCapabilities caps, IIndexerManagerService manager,Logger logger)
+        public BaseIndexer(string name, string description, Uri link, TorznabCapabilities caps, IIndexerManagerService manager, Logger logger)
         {
             DisplayName = name;
             DisplayDescription = description;
@@ -46,6 +47,11 @@ namespace Jackett.Indexers
         protected void SaveConfig(JToken config)
         {
             indexerService.SaveConfig(this as IIndexer, config);
+        }
+
+        private JObject GetConfig()
+        {
+            return indexerService.GetConfig(this as IIndexer);
         }
 
         protected void OnParseError(string results, Exception ex)

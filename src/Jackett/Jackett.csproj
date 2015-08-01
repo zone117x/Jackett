@@ -167,10 +167,15 @@
     <Compile Include="Indexers\BaseIndexer.cs" />
     <Compile Include="Indexers\BB.cs" />
     <Compile Include="Indexers\HDSpace.cs" />
+    <Compile Include="Indexers\nCore.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
     <Compile Include="Indexers\Pretome.cs" />
     <Compile Include="Indexers\PrivateHD.cs" />
     <Compile Include="Indexers\SpeedCD.cs" />
+    <Compile Include="Indexers\Torrentz.cs" />
     <Compile Include="Models\CachedResult.cs" />
+    <Compile Include="Models\ConfigurationDatanCore.cs" />
     <Compile Include="Models\TorznabCapabilities.cs" />
     <Compile Include="Models\Config\ServerConfig.cs" />
     <Compile Include="Models\TorznabCategory.cs" />
@@ -218,7 +223,6 @@
     <Compile Include="Indexers\AnimeBytes.cs" />
     <Compile Include="Indexers\TorrentLeech.cs" />
     <Compile Include="Indexers\TorrentShack.cs" />
-    <Compile Include="Indexers\Torrentz.cs" />
     <Compile Include="JackettModule.cs" />
     <Compile Include="Utils\DateTimeUtil.cs" />
     <Compile Include="Utils\Clients\IWebClient.cs" />
@@ -363,6 +367,7 @@
     <Content Include="Content\logos\hdtorrents.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Content\logos\ncore.png" />
     <Content Include="Content\logos\pretome.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
