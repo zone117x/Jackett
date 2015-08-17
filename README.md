@@ -67,7 +67,7 @@ Jackett can also be run from the command line using JackettConsole.exe if you wo
 
 #### Installation on Linux/OSX
 
-Run Jackett using mono with the command "mono JackettConsole.exe".
+Download the latest ```.tar.bz2``` from the website http://jackett.net/Download and run Jackett using mono with the command "mono JackettConsole.exe".
 
 
 
