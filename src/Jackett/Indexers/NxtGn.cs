@@ -114,7 +114,7 @@ namespace Jackett.Indexers
             var releases = new List<ReleaseInfo>();
             var breakWhile = false;
             var page = 0;
-            while (true)
+            while (page < 3)
             {
                 string episodeSearchUrl;
                 if (string.IsNullOrEmpty(query.GetQueryString()))
@@ -166,6 +166,17 @@ namespace Jackett.Indexers
 
                         var sizeStr = qRow.Find("#torrent-size").First().Text();
                         release.Size = ReleaseInfo.GetBytes(sizeStr);
+
+                        var moviesCats = new[] { 47, 38, 5, 23, 22, 33, 17, 9, 43 };
+                        var seriesCats = new[] { 4, 31, 21, 46, 45, 24, 26, 43 };
+                        var catUrl = qRow.Find(".torrent-icon > a").Attr("href");
+                        var cat = catUrl.Substring(catUrl.LastIndexOf('=') + 1);
+                        var catNo = int.Parse(cat);
+                        if (moviesCats.Contains(catNo))
+                            release.Category = TorznabCatType.Movies.ID;
+                        else if (seriesCats.Contains(catNo))
+                            release.Category = TorznabCatType.TV.ID;
+
                         releases.Add(release);
                     }
                     var nextPage = dom["#torrent-table-wrapper + p[align=center]"].Children().Last();
