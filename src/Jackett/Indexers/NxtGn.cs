@@ -181,10 +181,18 @@ namespace Jackett.Indexers
                         var sizeStr = qRow.Find("#torrent-size").First().Text();
                         release.Size = ReleaseInfo.GetBytes(sizeStr);
 
-                        var imdbUrl = qRow.Find("img [src=/pic/imdb.png]")?.Parent().Attr("href");
-                        if (imdbUrl != null)
+                        var infoLink = qRow.Find("#infolink");
+                        var linkContainer = infoLink.Children().First().Children().First();
+                        var url = linkContainer.Attr("href");
+                        var img = linkContainer.Children().First();
+                        var imgUrl = img.Attr("src");
+                        if (imgUrl == "/pic/imdb.png")
                         {
-                            release.Imdb = long.Parse(imdbUrl.Substring(imdbUrl.LastIndexOf('t') + 1));
+                            release.Imdb = long.Parse(url.Substring(url.LastIndexOf('t') + 1));
+                        }
+                        else if (imgUrl == "/pic/TV.png")
+                        {
+                            release.TheTvDbId = long.Parse(url.Substring(url.LastIndexOf('=') + 1));
                         }
                     }
                     var nextPage = dom["#torrent-table-wrapper + p[align=center]"].Children().Last();
