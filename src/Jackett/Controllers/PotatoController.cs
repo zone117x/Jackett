@@ -121,6 +121,7 @@ namespace Jackett.Controllers
             var potatoResponse = new TorrentPotatoResponse();
 
             releases = TorznabUtil.FilterResultsToTitle(releases, torznabQuery.SanitizedSearchTerm, year);
+            releases = TorznabUtil.FilterResultsToImdb(releases, request.imdbid);
 
             foreach (var r in releases)
             {
