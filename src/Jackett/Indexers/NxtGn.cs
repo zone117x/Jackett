@@ -78,7 +78,7 @@ namespace Jackett.Indexers
             AddCategoryMapping(43, TorznabCatType.TVWEBDL);
         }
 
-        public async Task ApplyConfiguration(JToken configJson)
+        public async Task<IndexerConfigurationStatus> ApplyConfiguration(JToken configJson)
         {
             var loginPage = await RequestStringWithCookies(LoginUrl);
             CQ loginDom = loginPage.Content;
@@ -107,6 +107,7 @@ namespace Jackett.Indexers
             passKey = passKey.Substring(0, passKey.IndexOf(' '));
             configData.RSSKey.Value = passKey;
             SaveConfig();
+            return IndexerConfigurationStatus.RequiresTesting;
         }
 
         public async Task<IEnumerable<ReleaseInfo>> PerformQuery(TorznabQuery query)

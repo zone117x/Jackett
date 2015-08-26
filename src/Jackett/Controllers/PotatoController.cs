@@ -133,7 +133,7 @@ namespace Jackett.Controllers
                     torrent_id = release.Guid.ToString(),
                     details_url = release.Comments.ToString(),
                     download_url = release.Link.ToString(),
-                   // imdb_id = request.imdbid,
+                    imdb_id = release.Imdb.HasValue ? "tt" + release.Imdb : null,
                     freeleech = false,
                     type = "movie",
                     size = (long)release.Size/ (1024 * 1024), // This is in MB
