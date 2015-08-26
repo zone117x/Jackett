@@ -51,18 +51,18 @@ namespace Jackett.Indexers
             AddCategoryMapping(5, TorznabCatType.MoviesSD);
             AddCategoryMapping(23, TorznabCatType.MoviesForeign);
             AddCategoryMapping(22, TorznabCatType.MoviesSD);
-            AddCategoryMapping(4, TorznabCatType.TVFOREIGN);
-            AddCategoryMapping(4, TorznabCatType.TVSD);
-            AddCategoryMapping(4, TorznabCatType.TVDocumentary);
-            AddCategoryMapping(4, TorznabCatType.TVSport);
-            AddCategoryMapping(4, TorznabCatType.TV);
-            AddCategoryMapping(31, TorznabCatType.TVHD);
-            AddCategoryMapping(21, TorznabCatType.TVFOREIGN);
+            //AddCategoryMapping(4, TorznabCatType.TVFOREIGN);
+            //AddCategoryMapping(4, TorznabCatType.TVSD);
+            //AddCategoryMapping(4, TorznabCatType.TVDocumentary);
+            //AddCategoryMapping(4, TorznabCatType.TVSport);
+            //AddCategoryMapping(4, TorznabCatType.TV);
+            //AddCategoryMapping(31, TorznabCatType.TVHD);
+            //AddCategoryMapping(21, TorznabCatType.TVFOREIGN);
             AddCategoryMapping(46, TorznabCatType.TV);
             AddCategoryMapping(46, TorznabCatType.TVHD);
-            AddCategoryMapping(45, TorznabCatType.TV);
-            AddCategoryMapping(45, TorznabCatType.TVSD);
-            AddCategoryMapping(24, TorznabCatType.TVFOREIGN);
+            //AddCategoryMapping(45, TorznabCatType.TV);
+            //AddCategoryMapping(45, TorznabCatType.TVSD);
+            //AddCategoryMapping(24, TorznabCatType.TVFOREIGN);
             AddCategoryMapping(26, TorznabCatType.TV);
             AddCategoryMapping(26, TorznabCatType.TVHD);
             AddCategoryMapping(26, TorznabCatType.TVWEBDL);
@@ -144,6 +144,20 @@ namespace Jackett.Indexers
                         var qLink = qRow.Find("#torrent-udgivelse2-users > a").First();
                         var qDesc = qRow.Find("#torrent-udgivelse2-users > p").FirstOrDefault();
 
+                        var moviesCats = new[] { 47, 38, 5, 23, 22, 33, 17, 9 };
+                        var seriesCats = new[] { 46, 26, 43 };
+                        var catUrl = qRow.Find(".torrent-icon > a").Attr("href");
+                        var cat = catUrl.Substring(catUrl.LastIndexOf('=') + 1);
+                        var catNo = int.Parse(cat);
+                        if (moviesCats.Contains(catNo))
+                            release.Category = TorznabCatType.Movies.ID;
+                        else if (seriesCats.Contains(catNo))
+                            release.Category = TorznabCatType.TV.ID;
+                        else
+                            continue;
+
+                        releases.Add(release);
+
                         var torrentUrl = qLink.Attr("href");
                         var torrentId = torrentUrl.Substring(torrentUrl.LastIndexOf('=') + 1);
 
@@ -167,17 +181,11 @@ namespace Jackett.Indexers
                         var sizeStr = qRow.Find("#torrent-size").First().Text();
                         release.Size = ReleaseInfo.GetBytes(sizeStr);
 
-                        var moviesCats = new[] { 47, 38, 5, 23, 22, 33, 17, 9, 43 };
-                        var seriesCats = new[] { 4, 31, 21, 46, 45, 24, 26, 43 };
-                        var catUrl = qRow.Find(".torrent-icon > a").Attr("href");
-                        var cat = catUrl.Substring(catUrl.LastIndexOf('=') + 1);
-                        var catNo = int.Parse(cat);
-                        if (moviesCats.Contains(catNo))
-                            release.Category = TorznabCatType.Movies.ID;
-                        else if (seriesCats.Contains(catNo))
-                            release.Category = TorznabCatType.TV.ID;
-
-                        releases.Add(release);
+                        var imdbUrl = qRow.Find("img [src=/pic/imdb.png]")?.Parent().Attr("href");
+                        if (imdbUrl != null)
+                        {
+                            release.Imdb = long.Parse(imdbUrl.Substring(imdbUrl.LastIndexOf('t') + 1));
+                        }
                     }
                     var nextPage = dom["#torrent-table-wrapper + p[align=center]"].Children().Last();
                     if (!nextPage.Is("a"))
