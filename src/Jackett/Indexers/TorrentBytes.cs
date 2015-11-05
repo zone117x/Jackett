@@ -136,6 +136,11 @@ namespace Jackett.Indexers
                 CQ dom = results;
 
                 var rows = dom["#content table:eq(4) tr"];
+                // If we return 4 rows the ratio warning banner must be displayed, skip to next table.
+                if (rows.Length.Equals(4))
+                {
+                    rows = dom["#content table:eq(5) tr"];
+                }
                 foreach (var row in rows.Skip(1))
                 {
                     var release = new ReleaseInfo();
