@@ -36,7 +36,7 @@ namespace Jackett
                     builder.RegisterType<UnixLibCurlWebClient>().As<IWebClient>();
                     break;
                 case "automatic":
-                    default:
+                default:
                     if (System.Environment.OSVersion.Platform == PlatformID.Unix)
                     {
                         builder.RegisterType<UnixLibCurlWebClient>().As<IWebClient>();
@@ -56,26 +56,30 @@ namespace Jackett
                 builder.RegisterType(indexer).Named<IIndexer>(BaseIndexer.GetIndexerID(indexer));
             }
 
-            Mapper.CreateMap<WebClientByteResult, WebClientStringResult>().ForMember(x => x.Content, opt => opt.Ignore()).AfterMap((be, str) =>
+            Mapper.Initialize(cfg =>
             {
-                str.Content = Encoding.UTF8.GetString(be.Content);
-            });
-
-            Mapper.CreateMap<WebClientStringResult, WebClientByteResult>().ForMember(x => x.Content, opt => opt.Ignore()).AfterMap((str, be) =>
-            {
-                if (!string.IsNullOrEmpty(str.Content))
+                cfg.CreateMap<WebClientByteResult, WebClientStringResult>().ForMember(x => x.Content, opt => opt.Ignore()).AfterMap((be, str) =>
                 {
-                    be.Content = Encoding.UTF8.GetBytes(str.Content);
-                }
-            });
+                    str.Content = Encoding.UTF8.GetString(be.Content);
+                });
 
-            Mapper.CreateMap<WebClientStringResult, WebClientStringResult>();
-            Mapper.CreateMap<WebClientByteResult, WebClientByteResult>();
-            Mapper.CreateMap<ReleaseInfo, ReleaseInfo>();
+                cfg.CreateMap<WebClientStringResult, WebClientByteResult>().ForMember(x => x.Content, opt => opt.Ignore()).AfterMap((str, be) =>
+                {
+                    if (!string.IsNullOrEmpty(str.Content))
+                    {
+                        be.Content = Encoding.UTF8.GetBytes(str.Content);
+                    }
+                });
 
-            Mapper.CreateMap<ReleaseInfo, TrackerCacheResult>().AfterMap((r, t) =>
-            {
-                t.CategoryDesc = TorznabCatType.GetCatDesc(r.Category);
+                cfg.CreateMap<WebClientStringResult, WebClientStringResult>();
+                cfg.CreateMap<WebClientByteResult, WebClientByteResult>();
+                cfg.CreateMap<ReleaseInfo, ReleaseInfo>();
+
+                cfg.CreateMap<ReleaseInfo, TrackerCacheResult>().AfterMap((r, t) =>
+                {
+                    t.CategoryDesc = TorznabCatType.GetCatDesc(r.Category);
+                });
+                
             });
         }
     }
